@@ -1,0 +1,78 @@
+[data-testid="stChatMessage"], [data-testid="stChatInput"] textarea {
+    font-family: 'Times New Roman', Times, serif !important;
+    font-size: 16px !important;
+    line-height: 1.5;
+}
+
+[data-testid="stChatMessageAvatar"] {
+    display: none !important;
+}
+
+[data-testid="stChatMessage"] {
+    border-radius: 0px !important; /* Squared edges */
+    padding: 12px 20px !important;
+    margin-bottom: 15px !important;
+    max-width: 75% !important;
+    width: fit-content !important;
+    align-items: center;
+    display: flex !important;
+}
+
+
+/* --- AI BUBBLE (Left Align, Black background, White text) --- */
+div[data-testid="stChatMessage"]:nth-child(odd) {
+    background-color: #000000 !important; 
+    color: #FFFFFF !important;
+    border: 1px solid #3f3f46 !important;
+    margin-right: auto !important;
+    margin-left: 0 !important;
+    flex-direction: row !important;
+}
+div[data-testid="stChatMessage"]:nth-child(odd) p { color: #FFFFFF !important; }
+
+/* AI Glowing Icon (White/Silver) */
+div[data-testid="stChatMessage"]:nth-child(odd)::before {
+    content: '';
+    display: block;
+    min-width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #FFFFFF !important; 
+    box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.6) !important;
+    margin-right: 15px;
+}
+
+
+/* --- USER BUBBLE (Right Align, Grayish background, Black text) --- */
+div[data-testid="stChatMessage"]:nth-child(even) {
+    background-color: #D3D3D3 !important; 
+    color: #000000 !important;
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    flex-direction: row-reverse !important; 
+    border: 1px solid #A9A9A9 !important;
+}
+div[data-testid="stChatMessage"]:nth-child(even) p { color: #000000 !important; text-align: right !important; }
+
+/* User Glowing Icon (Dark Gray) */
+div[data-testid="stChatMessage"]:nth-child(even)::before {
+    content: '';
+    display: block;
+    min-width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #696969 !important; 
+    box-shadow: 0 0 10px 2px rgba(105, 105, 105, 0.8) !important;
+    margin-left: 15px;
+}
+
+
+/* Input Bar - Squared off */
+[data-testid="stChatInput"] {
+    background-color: #18181b !important;
+    border-radius: 0px !important;
+    border: 1px solid #3f3f46 !important;
+}
+[data-testid="stChatInput"] textarea, [data-testid="stChatInput"] button {
+    color: #FFFFFF !important;
+}

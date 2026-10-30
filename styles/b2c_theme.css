@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Sue+Ellen+Francisco&display=swap');
+
+[data-testid="stChatMessage"], [data-testid="stChatInput"] textarea {
+    font-family: 'Sue Ellen Francisco', cursive !important;
+    font-size: 26px !important;
+    letter-spacing: 1px;
+}
+
+/* Remove default avatars entirely */
+[data-testid="stChatMessageAvatar"] {
+    display: none !important;
+}
+
+/* Base Chat Box Styling */
+[data-testid="stChatMessage"] {
+    border-radius: 20px !important;
+    padding: 12px 20px !important;
+    margin-bottom: 15px !important;
+    border: none !important;
+    width: fit-content !important;
+    max-width: 75% !important;
+    align-items: center;
+    display: flex !important;
+}
+
+/* --- AI BUBBLE (Left Align, Dark Magenta background, White text) --- */
+div[data-testid="stChatMessage"]:nth-child(odd) {
+    background-color: #8B008B !important; 
+    color: #FFFFFF !important;
+    margin-right: auto !important;
+    margin-left: 0 !important;
+    flex-direction: row !important;
+}
+div[data-testid="stChatMessage"]:nth-child(odd) p { color: #FFFFFF !important; }
+
+/* AI Glowing Icon (Darkish/Off-Magenta Glow) */
+div[data-testid="stChatMessage"]:nth-child(odd)::before {
+    content: '';
+    display: block;
+    min-width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: #d130d1 !important; 
+    box-shadow: 0 0 12px 3px rgba(209, 48, 209, 0.8) !important;
+    margin-right: 15px;
+}
+
+
+/* --- USER BUBBLE (Right Align, Beige background, Magenta text) --- */
+div[data-testid="stChatMessage"]:nth-child(even) {
+    background-color: #F5F5DC !important; 
+    color: #FF00FF !important; 
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    flex-direction: row-reverse !important; /* Forces elements to flip to the right */
+}
+div[data-testid="stChatMessage"]:nth-child(even) p { color: #FF00FF !important; text-align: right !important; }
+
+/* User Glowing Icon (Blue Glow) */
+div[data-testid="stChatMessage"]:nth-child(even)::before {
+    content: '';
+    display: block;
+    min-width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: #0000FF !important; 
+    box-shadow: 0 0 12px 3px rgba(0, 0, 255, 0.8) !important;
+    margin-left: 15px; 
+}
+
+
+/* Input Bar - Squared off */
+[data-testid="stChatInput"] {
+    background-color: #18181b !important;
+    border-radius: 0px !important; 
+    border: 1px solid #3f3f46 !important;
+}
+[data-testid="stChatInput"] textarea, [data-testid="stChatInput"] button {
+    font-family: 'Times New Roman', Times, serif !important;
+    color: #FFFFFF !important;
+}
