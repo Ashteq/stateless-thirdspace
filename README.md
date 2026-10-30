@@ -1,5 +1,5 @@
 Markdown
-# Stateless ThirdSpace
+# ThirdSpace
 
 **A Discord for real-life connection. An algorithmic wellbeing coach powered by Qloo.**
 
