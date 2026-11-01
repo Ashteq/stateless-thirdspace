@@ -1,0 +1,508 @@
+<!-- ============================================================
+     1. INTRO OVERLAY CSS
+     ============================================================ -->
+<style>
+  #intro-overlay {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000000;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.75s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: auto;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  #intro-overlay.fade-out {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #intro-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 1;
+  }
+
+  /* Top-Right Attribution */
+  .intro-top-right-brand {
+    position: absolute;
+    top: 28px;
+    right: 32px;
+    text-align: right;
+    z-index: 10;
+    pointer-events: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .intro-brand-main {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: #e4e4e7;
+  }
+
+  .intro-brand-sub {
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.16em;
+    color: #71717a;
+    margin-top: 3px;
+    text-transform: lowercase;
+  }
+
+  /* "THIRD SPACE" Directly Below Visualization */
+  .intro-bottom-container {
+    position: absolute;
+    top: calc(50% + 140px);
+    left: 50%;
+    transform: translate(-50%, 10px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .intro-bottom-container.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  .intro-title {
+    font-size: clamp(22px, 3.2vw, 34px);
+    font-weight: 700;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: #ffffff;
+    text-shadow: 0 0 24px rgba(255, 255, 255, 0.3);
+    pointer-events: none;
+  }
+</style>
+
+<!-- ============================================================
+     2. INTRO OVERLAY HTML
+     ============================================================ -->
+<div id="intro-overlay">
+  <canvas id="intro-canvas"></canvas>
+
+  <!-- Top-Right Attribution -->
+  <div class="intro-top-right-brand">
+    <div class="intro-brand-main">Powered by QLOO.</div>
+    <div class="intro-brand-sub">a.s.h.</div>
+  </div>
+
+  <!-- Third Space Branding Directly Below Visualization -->
+  <div id="intro-bottom" class="intro-bottom-container">
+    <h1 class="intro-title">THIRD SPACE</h1>
+  </div>
+</div>
+
+<!-- ============================================================
+     3. CONTINUOUS ROTATION JAVASCRIPT
+     ============================================================ -->
+<script>
+  (function() {
+    let startTime = null;
+    let animFrameId = null;
+    let isExiting = false;
+
+    const overlay = document.getElementById('intro-overlay');
+    const canvas = document.getElementById('intro-canvas');
+    const bottomBrand = document.getElementById('intro-bottom');
+    if (!overlay || !canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    let dpr = window.devicePixelRatio || 1;
+
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+
+      // Lock text right below the visualization bounds
+      const baseL = Math.min(width, height) * 0.25;
+      if (bottomBrand) {
+        bottomBrand.style.top = `calc(50% + ${baseL * 0.95}px)`;
+      }
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const easeOutCubic = x => 1 - Math.pow(1 - x, 3);
+    const easeInOutQuad = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+
+    function project3D(x, y, z, rx, ry, rz, cx, cy, fov = 750, camDist = 550) {
+      const cosZ = Math.cos(rz), sinZ = Math.sin(rz);
+      const x1 = x * cosZ - y * sinZ;
+      const y1 = x * sinZ + y * cosZ;
+      const z1 = z;
+
+      const cosX = Math.cos(rx), sinX = Math.sin(rx);
+      const y2 = y1 * cosX - z1 * sinX;
+      const z2 = y1 * sinX + z1 * cosX;
+      const x2 = x1;
+
+      const cosY = Math.cos(ry), sinY = Math.sin(ry);
+      const x3 = x2 * cosY + z2 * sinY;
+      const z3 = -x2 * sinY + z2 * cosY;
+      const y3 = y2;
+
+      const depth = z3 + camDist;
+      const factor = fov / Math.max(20, depth);
+
+      return {
+        sx: cx + x3 * factor,
+        sy: cy + y3 * factor,
+        depth: depth
+      };
+    }
+
+    const bgGridTicks = [];
+    for (let i = 0; i < 35; i++) {
+      bgGridTicks.push({
+        x: (Math.random() - 0.5) * 1200,
+        y: (Math.random() - 0.5) * 800,
+        len: 8 + Math.random() * 16,
+        isVert: Math.random() > 0.5,
+        alpha: 0.10 + Math.random() * 0.16
+      });
+    }
+
+    function drawBackgroundGraph(cx, cy, timeSec) {
+      ctx.save();
+
+      // Orthogonal grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+      ctx.lineWidth = 1;
+      const gridSize = 60;
+      const offsetX = (timeSec * 6) % gridSize;
+      const offsetY = (timeSec * 5) % gridSize;
+
+      ctx.beginPath();
+      for (let x = -gridSize; x < width + gridSize; x += gridSize) {
+        ctx.moveTo(x - offsetX, 0);
+        ctx.lineTo(x - offsetX, height);
+      }
+      for (let y = -gridSize; y < height + gridSize; y += gridSize) {
+        ctx.moveTo(0, y - offsetY);
+        ctx.lineTo(width, y - offsetY);
+      }
+      ctx.stroke();
+
+      // Radar rings
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.038)';
+      for (let r = 80; r <= 360; r += 70) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Technical ticks
+      bgGridTicks.forEach(tick => {
+        ctx.strokeStyle = `rgba(255, 255, 255, ${tick.alpha})`;
+        ctx.lineWidth = 1;
+        const px = cx + tick.x;
+        const py = cy + tick.y;
+        ctx.beginPath();
+        if (tick.isVert) {
+          ctx.moveTo(px, py - tick.len / 2);
+          ctx.lineTo(px, py + tick.len / 2);
+        } else {
+          ctx.moveTo(px - tick.len / 2, py);
+          ctx.lineTo(px + tick.len / 2, py);
+        }
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+
+    function renderFrame(timestamp) {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const tSec = elapsed / 1000;
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, width, height);
+
+      const cx = width / 2;
+      const cy = height / 2 - 35;
+
+      drawBackgroundGraph(cx, cy, tSec);
+
+      // Continuous 3D rotation
+      const rotStartTime = 0.8;
+      const rotProgress = Math.max(0, (tSec - rotStartTime));
+      const rotX = 0.45 + Math.sin(rotProgress * 0.9) * 0.15;
+      const rotY = -0.65 + rotProgress * 0.85;
+      const rotZ = Math.sin(rotProgress * 0.6) * 0.06;
+
+      const baseL = Math.min(width, height) * 0.25;
+
+      // Phase 1: Convergence
+      const convergeProgress = Math.min(1.0, tSec / 1.0);
+      const cEased = easeOutCubic(convergeProgress);
+
+      let centerBrighten = 0;
+      if (tSec >= 0.7 && tSec <= 1.4) {
+        centerBrighten = Math.sin(((tSec - 0.7) / 0.7) * Math.PI);
+      }
+
+      const axisVectors = [
+        { x: 1, y: 0, z: 0, stroke: '#ffffff' },
+        { x: 0, y: -1, z: 0, stroke: '#e4e4e7' },
+        { x: 0, y: 0, z: 1, stroke: '#a1a1aa' }
+      ];
+
+      const origin3D = project3D(0, 0, 0, rotX, rotY, rotZ, cx, cy);
+
+      // Phase 2: Transparent Planes Unfold
+      let planeProgress = 0;
+      if (tSec >= 1.0) {
+        planeProgress = Math.min(1.0, (tSec - 1.0) / 1.1);
+      }
+      const pEased = easeInOutQuad(planeProgress);
+
+      // Reveal "THIRD SPACE" directly below visualization
+      if (tSec >= 1.8 && bottomBrand && !bottomBrand.classList.contains('visible')) {
+        bottomBrand.classList.add('visible');
+      }
+
+      if (planeProgress > 0) {
+        const planeL = baseL * pEased;
+
+        const planes = [
+          {
+            name: 'XY',
+            corners: [
+              { x: 0, y: 0, z: 0 },
+              { x: planeL, y: 0, z: 0 },
+              { x: planeL, y: -planeL, z: 0 },
+              { x: 0, y: -planeL, z: 0 }
+            ],
+            fill: 'rgba(244, 244, 245, 0.085)',
+            border: 'rgba(255, 255, 255, 0.45)',
+            gridCount: 4
+          },
+          {
+            name: 'YZ',
+            corners: [
+              { x: 0, y: 0, z: 0 },
+              { x: 0, y: -planeL, z: 0 },
+              { x: 0, y: -planeL, z: planeL },
+              { x: 0, y: 0, z: planeL }
+            ],
+            fill: 'rgba(161, 161, 170, 0.07)',
+            border: 'rgba(212, 212, 216, 0.4)',
+            gridCount: 4
+          },
+          {
+            name: 'ZX',
+            corners: [
+              { x: 0, y: 0, z: 0 },
+              { x: 0, y: 0, z: planeL },
+              { x: planeL, y: 0, z: planeL },
+              { x: planeL, y: 0, z: 0 }
+            ],
+            fill: 'rgba(82, 82, 91, 0.08)',
+            border: 'rgba(161, 161, 170, 0.35)',
+            gridCount: 4
+          }
+        ];
+
+        const projectedPlanes = planes.map(plane => {
+          const pts = plane.corners.map(c => project3D(c.x, c.y, c.z, rotX, rotY, rotZ, cx, cy));
+          const avgDepth = pts.reduce((sum, p) => sum + p.depth, 0) / pts.length;
+          return { ...plane, pts, avgDepth };
+        });
+        projectedPlanes.sort((a, b) => b.avgDepth - a.avgDepth);
+
+        projectedPlanes.forEach(plane => {
+          ctx.save();
+
+          ctx.beginPath();
+          plane.pts.forEach((pt, i) => {
+            if (i === 0) ctx.moveTo(pt.sx, pt.sy);
+            else ctx.lineTo(pt.sx, pt.sy);
+          });
+          ctx.closePath();
+          ctx.fillStyle = plane.fill;
+          ctx.fill();
+
+          // Internal grid line etchings
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+          ctx.lineWidth = 1;
+          const steps = plane.gridCount;
+          for (let s = 1; s < steps; s++) {
+            const f = s / steps;
+            const pA = {
+              sx: plane.pts[0].sx + (plane.pts[1].sx - plane.pts[0].sx) * f,
+              sy: plane.pts[0].sy + (plane.pts[1].sy - plane.pts[0].sy) * f
+            };
+            const pB = {
+              sx: plane.pts[3].sx + (plane.pts[2].sx - plane.pts[3].sx) * f,
+              sy: plane.pts[3].sy + (plane.pts[2].sy - plane.pts[3].sy) * f
+            };
+            ctx.beginPath();
+            ctx.moveTo(pA.sx, pA.sy);
+            ctx.lineTo(pB.sx, pB.sy);
+            ctx.stroke();
+
+            const pC = {
+              sx: plane.pts[0].sx + (plane.pts[3].sx - plane.pts[0].sx) * f,
+              sy: plane.pts[0].sy + (plane.pts[3].sy - plane.pts[0].sy) * f
+            };
+            const pD = {
+              sx: plane.pts[1].sx + (plane.pts[2].sx - plane.pts[1].sx) * f,
+              sy: plane.pts[1].sy + (plane.pts[2].sy - plane.pts[1].sy) * f
+            };
+            ctx.beginPath();
+            ctx.moveTo(pC.sx, pC.sy);
+            ctx.lineTo(pD.sx, pD.sy);
+            ctx.stroke();
+          }
+
+          ctx.strokeStyle = plane.border;
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+
+          ctx.restore();
+        });
+      }
+
+      // 3D Axes
+      axisVectors.forEach(vec => {
+        const fullLen = baseL * 1.15;
+        const startDist = Math.max(width, height) * 0.8;
+        const currentLen = fullLen * cEased;
+
+        const startProgress = (1 - cEased) * startDist;
+        const pEnd = project3D(
+          vec.x * (currentLen + startProgress),
+          vec.y * (currentLen + startProgress),
+          vec.z * (currentLen + startProgress),
+          rotX, rotY, rotZ, cx, cy
+        );
+
+        ctx.save();
+        ctx.strokeStyle = centerBrighten > 0.1 ? '#ffffff' : vec.stroke;
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 6 + centerBrighten * 22;
+        ctx.lineWidth = 2.4 + centerBrighten * 2.0;
+
+        ctx.beginPath();
+        ctx.moveTo(origin3D.sx, origin3D.sy);
+        ctx.lineTo(pEnd.sx, pEnd.sy);
+        ctx.stroke();
+
+        // Axis ticks
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = '#ffffff';
+        const tickCount = 6;
+        for (let k = 1; k <= tickCount; k++) {
+          const f = k / tickCount;
+          const tx = vec.x * currentLen * f;
+          const ty = vec.y * currentLen * f;
+          const tz = vec.z * currentLen * f;
+          const pTickCenter = project3D(tx, ty, tz, rotX, rotY, rotZ, cx, cy);
+
+          const pTickOffset = project3D(
+            tx + (vec.x === 0 ? 5 : 0),
+            ty + (vec.y === 0 ? -5 : 0),
+            tz + (vec.z === 0 ? 5 : 0),
+            rotX, rotY, rotZ, cx, cy
+          );
+          const dx = pTickOffset.sx - pTickCenter.sx;
+          const dy = pTickOffset.sy - pTickCenter.sy;
+
+          ctx.beginPath();
+          ctx.moveTo(pTickCenter.sx - dx, pTickCenter.sy - dy);
+          ctx.lineTo(pTickCenter.sx + dx, pTickCenter.sy + dy);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(pEnd.sx, pEnd.sy, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      });
+
+      // Origin
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 12 + centerBrighten * 35;
+      ctx.beginPath();
+      ctx.arc(origin3D.sx, origin3D.sy, 3.5 + centerBrighten * 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      animFrameId = requestAnimationFrame(renderFrame);
+    }
+
+    function exitIntro() {
+      if (isExiting) return;
+      isExiting = true;
+
+      overlay.classList.add('fade-out');
+
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        document.dispatchEvent(new CustomEvent('introDismissed'));
+      }, 750);
+    }
+
+    function start() {
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      startTime = null;
+      isExiting = false;
+      overlay.style.display = 'flex';
+      overlay.classList.remove('fade-out');
+      if (bottomBrand) bottomBrand.classList.remove('visible');
+      animFrameId = requestAnimationFrame(renderFrame);
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      start();
+    } else {
+      window.addEventListener('DOMContentLoaded', start);
+    }
+
+    // Clicking anywhere on the overlay smoothly dismisses it
+    overlay.addEventListener('click', () => {
+      exitIntro();
+    });
+
+    // Keyboard shortcut (Enter / Space)
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Enter' || e.code === 'Space') {
+        e.preventDefault();
+        exitIntro();
+      }
+    });
+
+  })();
+</script>
