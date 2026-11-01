@@ -2,7 +2,7 @@ import os
 import json
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
-from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
+from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage, AIMessage
 from pydantic import SecretStr
 from backend.qloo_tools import get_taste_intelligence, get_locality_intelligence
 
@@ -37,7 +37,7 @@ You are the Stateless ThirdSpace B2B Real Estate & Cultural Architect. Your tone
 
 ALLOWED_GROQ_MODELS = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
 
-def get_agent_response(user_input: str, tab_state: str = "B2C") -> tuple[str, dict]:
+def get_agent_response(user_input: str, tab_state: str = "B2C", chat_history: list = None) -> tuple[str, dict]:
     load_dotenv(override=True)
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
@@ -55,7 +55,22 @@ def get_agent_response(user_input: str, tab_state: str = "B2C") -> tuple[str, di
         try:
             llm = ChatGroq(api_key=SecretStr(api_key), model=active_model, temperature=0.75)
             llm_with_tools = llm.bind_tools(tools)
-            messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_input)]
+            
+            # --- MEMORY INJECTION ---
+            messages = [SystemMessage(content=system_prompt)]
+            
+            if chat_history:
+                for msg in chat_history:
+                    # Maps Streamlit dictionaries to LangChain message objects
+                    if msg.get("role") == "user":
+                        messages.append(HumanMessage(content=msg.get("content", "")))
+                    elif msg.get("role") == "assistant":
+                        messages.append(AIMessage(content=msg.get("content", "")))
+            
+            # Append the current input if it isn't already at the end of the history
+            if not chat_history or chat_history[-1].get("content") != user_input:
+                messages.append(HumanMessage(content=user_input))
+            # ------------------------
 
             debug_trace = {"persona_mode": tab_state, "model_used": active_model, "qloo_tool_calls": []}
 
